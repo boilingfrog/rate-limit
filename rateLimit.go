@@ -17,15 +17,14 @@ func New(conf *redis.Config) *LimitClient {
 }
 
 type RateLimit interface {
-	RateLimiter(param ...Param) error
-	DefaultLimiter() error
-	UserTimesLimiter(accountId string, maxThreads, expireTime int64) error
-	TimesLimiter(key string, maxThreads, expireTime int64) error
-	SingleRequestLimiter(key string, expireTime int64) error
+	RateLimiter(ctx context.Context, param ...Param) error
+	DefaultLimiter(ctx context.Context) error
+	UserTimesLimiter(ctx context.Context, accountId string, maxThreads, expireTime int64) error
+	TimesLimiter(ctx context.Context, key string, maxThreads, expireTime int64) error
+	SingleRequestLimiter(ctx context.Context, key string, expireTime int64) error
 }
 
-func (p *LimitClient) RateLimiter(param ...Param) error {
-	ctx := context.Background()
+func (p *LimitClient) RateLimiter(ctx context.Context, param ...Param) error {
 	ps := evaluateParam(param)
 
 	validAndAssignInput(ctx, ps)
@@ -59,12 +58,12 @@ func (p *LimitClient) RateLimiter(param ...Param) error {
 	return nil
 }
 
-func (p *LimitClient) DefaultLimiter() error {
-	return p.RateLimiter(nil)
+func (p *LimitClient) DefaultLimiter(ctx context.Context) error {
+	return p.RateLimiter(ctx, nil)
 }
 
-func (p *LimitClient) UserTimesLimiter(accountId string, maxThreads, expireTime int64) error {
-	return p.RateLimiter(
+func (p *LimitClient) UserTimesLimiter(ctx context.Context, accountId string, maxThreads, expireTime int64) error {
+	return p.RateLimiter(ctx,
 		MaxThreads(maxThreads),
 		ExpireTime(expireTime),
 		Key("User:limit:"+accountId),
@@ -73,8 +72,8 @@ func (p *LimitClient) UserTimesLimiter(accountId string, maxThreads, expireTime 
 	)
 }
 
-func (p *LimitClient) TimesLimiter(key string, maxThreads, expireTime int64) error {
-	return p.RateLimiter(
+func (p *LimitClient) TimesLimiter(ctx context.Context, key string, maxThreads, expireTime int64) error {
+	return p.RateLimiter(ctx,
 		MaxThreads(maxThreads),
 		ExpireTime(expireTime),
 		Key(key),
@@ -82,8 +81,8 @@ func (p *LimitClient) TimesLimiter(key string, maxThreads, expireTime int64) err
 	)
 }
 
-func (p *LimitClient) SingleRequestLimiter(key string, expireTime int64) error {
-	return p.RateLimiter(
+func (p *LimitClient) SingleRequestLimiter(ctx context.Context, key string, expireTime int64) error {
+	return p.RateLimiter(ctx,
 		MaxThreads(1),
 		ExpireTime(expireTime),
 		Key(key),
