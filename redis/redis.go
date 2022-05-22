@@ -35,6 +35,14 @@ type Redis interface {
 	Do(ctx context.Context, commandName string, args ...interface{}) (reply interface{}, err error)
 	Close() error
 	Conn() rd.Conn
+	Pipeline(ctx context.Context) Pipeline
+
+	Del(ctx context.Context, key string) error
+}
+
+type Pipeline interface {
+	Send(command string, args ...interface{})
+	Receive() (replies []interface{}, err error)
 }
 
 func (r *redis) Do(ctx context.Context, commandName string, args ...interface{}) (reply interface{}, err error) {
@@ -53,4 +61,42 @@ func (r *redis) Close() error {
 
 func (r *redis) Conn() rd.Conn {
 	return r.pool.Get()
+}
+
+func (r *redis) Del(ctx context.Context, key string) error {
+	_, err := r.Do(ctx, "DEL", key)
+	return err
+}
+
+func (r *redis) Pipeline(ctx context.Context) Pipeline {
+	return &pipeline{
+		conn: r.pool.Get(),
+	}
+}
+
+type pipeline struct {
+	conn rd.Conn
+	num  int
+}
+
+func (p *pipeline) Send(command string, args ...interface{}) {
+	p.conn.Send(command, args...)
+	p.num++
+}
+
+func (p *pipeline) Receive() (replies []interface{}, err error) {
+	defer p.conn.Close()
+
+	if err = p.conn.Flush(); err != nil {
+		return
+	}
+
+	for i := 0; i < p.num; i++ {
+		reply, err := p.conn.Receive()
+		if err != nil {
+			return nil, err
+		}
+		replies = append(replies, reply)
+	}
+	return
 }

@@ -1,86 +1,98 @@
 package rateLimit
 
 import (
+	"context"
 	"fmt"
-	"net/http"
-
-	"github.com/gin-gonic/gin"
-)
-
-const (
-	DefaultExpireTime = 10 // 单位秒
-	DefaultMaxThreads = 1
-	DefaultPrefix     = "test"
+	"rate-limit/redis"
 )
 
 type LimitClient struct {
-	rateLimit redis.redis
+	rateLimit redis.Redis
 }
 
-func New(conf *redis.redis.Config) *LimitClient {
+func New(conf *redis.Config) *LimitClient {
 	return &LimitClient{
-		rateLimit: redis.redis.New(conf),
+		rateLimit: redis.New(conf),
 	}
 }
 
-func (p *LimitClient) RateLimiter(param ...Param) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		ps := evaluateParam(param)
-
-		validAndAssignInput(c, ps)
-
-		pipe := p.rateLimit.Pipeline(c)
-		pipe.Send("INCR", ps.Key)
-		pipe.Send("TTL", ps.Key)
-
-		replies, err := pipe.Receive()
-		if err != nil {
-			log.Errorw("pipe filed", "message", ps.Key, "err", err)
-			c.AbortWithStatusJSON(http.StatusOK, gin.H{
-				"ok":      false,
-				"ecode":   ecode.RateLimitInvalid,
-				"code":    "RATE_LIMIT",
-				"message": "请稍后重试！",
-			})
-			return
-		}
-
-		var (
-			current = replies[0].(int64)
-			ttl     = replies[1].(int64)
-		)
-
-		if current == int64(1) || ttl == int64(-1) {
-			p.rateLimit.Do(c, "EXPIRE", ps.Key, ps.ExpireTime)
-		}
-
-		if current > ps.MaxThreads {
-			c.AbortWithStatusJSON(http.StatusOK, gin.H{
-				"ok":      false,
-				"ecode":   ecode.RateLimitInvalid,
-				"code":    "RATE_LIMIT",
-				"message": "请稍后重试！",
-			})
-			return
-
-		}
-		c.Next()
-
-		if !ps.IsLimitTime {
-			defer p.rateLimit.Del(c, ps.Key)
-		}
-	}
+type RateLimit interface {
+	RateLimiter(param ...Param) error
+	DefaultLimiter() error
+	UserTimesLimiter(accountId string, maxThreads, expireTime int64) error
+	TimesLimiter(key string, maxThreads, expireTime int64) error
+	SingleRequestLimiter(key string, expireTime int64) error
 }
 
-func validAndAssignInput(ctx *gin.Context, p *params) {
-	keyItem := ""
-	userID, exists := ctx.Get("userKey")
-	if exists && userID != "" {
-		keyItem = userID.(string)
-		if p.IsLimitUser {
-			p.Key += fmt.Sprintf("%s:limit:user:all:%s", DefaultPrefix, keyItem)
-		}
+func (p *LimitClient) RateLimiter(param ...Param) error {
+	ctx := context.Background()
+	ps := evaluateParam(param)
+
+	validAndAssignInput(ctx, ps)
+
+	pipe := p.rateLimit.Pipeline(ctx)
+	pipe.Send("INCR", ps.Key)
+	pipe.Send("TTL", ps.Key)
+
+	replies, err := pipe.Receive()
+	if err != nil {
+		return RateLimitErr
 	}
+
+	var (
+		current = replies[0].(int64)
+		ttl     = replies[1].(int64)
+	)
+
+	if current == int64(1) || ttl == int64(-1) {
+		p.rateLimit.Do(ctx, "EXPIRE", ps.Key, ps.ExpireTime)
+	}
+
+	if current > ps.MaxThreads {
+		return RateLimitErr
+	}
+
+	if !ps.IsLimitTime {
+		p.rateLimit.Del(ctx, ps.Key)
+	}
+
+	return nil
+}
+
+func (p *LimitClient) DefaultLimiter() error {
+	return p.RateLimiter(nil)
+}
+
+func (p *LimitClient) UserTimesLimiter(accountId string, maxThreads, expireTime int64) error {
+	return p.RateLimiter(
+		MaxThreads(maxThreads),
+		ExpireTime(expireTime),
+		Key("User:limit:"+accountId),
+		IsLimitUser(true),
+		IsLimitTime(true),
+	)
+}
+
+func (p *LimitClient) TimesLimiter(key string, maxThreads, expireTime int64) error {
+	return p.RateLimiter(
+		MaxThreads(maxThreads),
+		ExpireTime(expireTime),
+		Key(key),
+		IsLimitTime(true),
+	)
+}
+
+func (p *LimitClient) SingleRequestLimiter(key string, expireTime int64) error {
+	return p.RateLimiter(
+		MaxThreads(1),
+		ExpireTime(expireTime),
+		Key(key),
+		IsLimitTime(false),
+	)
+}
+
+func validAndAssignInput(ctx context.Context, p *params) {
+	keyItem := "common"
 
 	if p.ExpireTime == 0 {
 		p.ExpireTime = DefaultExpireTime
@@ -91,7 +103,7 @@ func validAndAssignInput(ctx *gin.Context, p *params) {
 	}
 
 	if p.Key == "" {
-		// 格式 rlg:60:POST:gold:/gold/issueGold:118.112.12.34
-		p.Key = fmt.Sprintf("%s:%s:%s:%s", DefaultPrefix, ctx.Request.Method, ctx.Request.URL.Path, keyItem)
+		// 可以根据路由的请求，例如接口名，ip,对默认的key进行定制
+		p.Key = fmt.Sprintf("%s:%s", DefaultPrefix, keyItem)
 	}
 }
