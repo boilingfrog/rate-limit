@@ -231,7 +231,7 @@ func TestUserTimesLimiter(t *testing.T) {
 	}
 }
 
-func TestSingleRequestLimiter(t *testing.T) {
+func TestUserSingleRequestLimiter(t *testing.T) {
 	createdDate, _ := strconv.Atoi(time.Now().Format("20060102150405"))
 
 	var GetRandomKey = func(key string) string {
@@ -267,7 +267,7 @@ func TestSingleRequestLimiter(t *testing.T) {
 	}
 	for _, item := range tests {
 		t.Run(item.name, func(t *testing.T) {
-			got := limit.SingleRequestLimiter(context.Background(), item.key, 10)
+			got := limit.UserSingleRequestLimiter(context.Background(), item.key, 10)
 			assert.Equal(t, item.IsLimitErr, got)
 		})
 	}

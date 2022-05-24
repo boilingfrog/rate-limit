@@ -21,7 +21,7 @@ type RateLimit interface {
 	DefaultLimiter(ctx context.Context) error
 	UserTimesLimiter(ctx context.Context, accountId string, maxThreads, expireTime int64) error
 	TimesLimiter(ctx context.Context, key string, maxThreads, expireTime int64) error
-	SingleRequestLimiter(ctx context.Context, key string, expireTime int64) error
+	UserSingleRequestLimiter(ctx context.Context, accountId string, expireTime int64) error
 }
 
 func (p *LimitClient) RateLimiter(ctx context.Context, param ...Param) error {
@@ -81,11 +81,13 @@ func (p *LimitClient) TimesLimiter(ctx context.Context, key string, maxThreads, 
 	)
 }
 
-func (p *LimitClient) SingleRequestLimiter(ctx context.Context, key string, expireTime int64) error {
+func (p *LimitClient) UserSingleRequestLimiter(ctx context.Context, accountId string, expireTime int64) error {
+	// todo 业务使用的，可以根据用户id，加上ip,接口名来拼接 key
 	return p.RateLimiter(ctx,
 		MaxThreads(1),
 		ExpireTime(expireTime),
-		Key(key),
+		// 业务中使用需要完善
+		Key(accountId),
 		IsLimitTime(false),
 	)
 }
