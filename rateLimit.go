@@ -7,13 +7,33 @@ import (
 )
 
 type LimitClient struct {
-	rateLimit redis.Redis
+	rateLimit *redis.Redis
 }
 
 func New(conf *redis.Config) *LimitClient {
 	return &LimitClient{
 		rateLimit: redis.New(conf),
 	}
+}
+
+func createScript() string {
+	script := `
+		local expireTime = ARGV[1] 
+		local limitNum = ARGV[2]
+		local key = KEYS[1]
+
+		local visitNum = redis.call('incr', key)
+		if visitNum == 1 then
+				redis.call('expire', key, expireTime)
+		end
+		
+		if visitNum > tonumber(limitNum) then
+				return 0
+		end
+		
+		return 1;
+    `
+	return script
 }
 
 type RateLimit interface {
@@ -29,25 +49,12 @@ func (p *LimitClient) RateLimiter(ctx context.Context, param ...Param) error {
 
 	validAndAssignInput(ctx, ps)
 
-	pipe := p.rateLimit.Pipeline(ctx)
-	pipe.Send("INCR", ps.Key)
-	pipe.Send("TTL", ps.Key)
-
-	replies, err := pipe.Receive()
+	res, err := p.rateLimit.Eval(ctx, createScript(), []string{ps.Key}, ps.ExpireTime, ps.MaxThreads).Result()
 	if err != nil {
 		return RateLimitErr
 	}
 
-	var (
-		current = replies[0].(int64)
-		ttl     = replies[1].(int64)
-	)
-
-	if current == int64(1) || ttl == int64(-1) {
-		p.rateLimit.Do(ctx, "EXPIRE", ps.Key, ps.ExpireTime)
-	}
-
-	if current > ps.MaxThreads {
+	if res.(int64) != 1 {
 		return RateLimitErr
 	}
 
