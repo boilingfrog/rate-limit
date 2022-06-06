@@ -45,12 +45,12 @@ func TestRateLimiterTimes(t *testing.T) {
 		{
 			name:       "测试 RateLimiter-4",
 			key:        GetRandomKey("test-DefaultLimiter"),
-			IsLimitErr: rateLimit.RateLimitErr,
+			IsLimitErr: rateLimit.Err,
 		},
 		{
 			name:       "测试 RateLimiter-5",
 			key:        GetRandomKey("test-DefaultLimiter"),
-			IsLimitErr: rateLimit.RateLimitErr,
+			IsLimitErr: rateLimit.Err,
 		},
 		{
 			name:       "测试 RateLimiter-6",
@@ -158,17 +158,17 @@ func TestTimesLimiter(t *testing.T) {
 		{
 			name:       "测试 TimesLimiter-4",
 			key:        GetRandomKey("test-TimesLimiter"),
-			IsLimitErr: rateLimit.RateLimitErr,
+			IsLimitErr: rateLimit.Err,
 		},
 		{
 			name:       "测试 TimesLimiter-5",
 			key:        GetRandomKey("test-TimesLimiter"),
-			IsLimitErr: rateLimit.RateLimitErr,
+			IsLimitErr: rateLimit.Err,
 		},
 		{
 			name:       "测试 TimesLimiter-6",
 			key:        GetRandomKey("test-TimesLimiter"),
-			IsLimitErr: rateLimit.RateLimitErr,
+			IsLimitErr: rateLimit.Err,
 		},
 	}
 	for _, item := range tests {
@@ -210,17 +210,17 @@ func TestUserTimesLimiter(t *testing.T) {
 		{
 			name:       "测试 UserTimes-4",
 			User:       GetRandomKey("test-UserTimes"),
-			IsLimitErr: rateLimit.RateLimitErr,
+			IsLimitErr: rateLimit.Err,
 		},
 		{
 			name:       "测试 UserTimes-5",
 			User:       GetRandomKey("test-UserTimes"),
-			IsLimitErr: rateLimit.RateLimitErr,
+			IsLimitErr: rateLimit.Err,
 		},
 		{
 			name:       "测试 UserTimes-6",
 			User:       GetRandomKey("test-UserTimes"),
-			IsLimitErr: rateLimit.RateLimitErr,
+			IsLimitErr: rateLimit.Err,
 		},
 	}
 	for _, item := range tests {

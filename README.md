@@ -34,14 +34,9 @@ UserSingleRequestLimiter(ctx context.Context, accountId string, expireTime int64
 
 这种纯属是应对恶意请求，发起者使用同一个用户信息，反复对多个接口发起恶意请求  
 
-那么我们可以认为没这个用户在一段时间内的请求，超过某个值吗，后面的请求就可以拦截了   
+那么我们可以认为这个用户在一段时间内的请求，超过某个值吗，后面的请求就可以拦截了   
 
 ```go
 UserTimesLimiter(ctx context.Context, accountId string, maxThreads, expireTime int64) error
 ```
-
-未实现部分  
-
-key 设置过期时间，之后可以使用 LUA 保证命令的原子性  
-
 

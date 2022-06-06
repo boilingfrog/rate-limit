@@ -8,7 +8,7 @@ const (
 	DefaultPrefix     = "test"
 )
 
-var RateLimitErr = errors.New("请求过于频繁了,请稍后再试!")
+var Err = errors.New("请求过于频繁了,请稍后再试")
 
 type params struct {
 	Key         string `json:"key"`
