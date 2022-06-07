@@ -2,7 +2,7 @@ package rateLimit
 
 // 这是固定窗口的限流实现
 // 栗子 对ip做限流 3秒内只能访问100次
-// 固定窗口就是 第1秒访问了1次，第三秒访问了99次，那么第3秒仍然可访问100次
+// 固定窗口就是 第1秒访问了1次，第三秒访问了99次，那么第4秒仍然可访问100次
 func fixedWindowScript() string {
 	script := `
 		local expireTime = ARGV[1] 
