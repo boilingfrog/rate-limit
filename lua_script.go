@@ -63,3 +63,54 @@ func slidingWindowScript() string {
     `
 	return script
 }
+
+// 令牌桶算法的实现
+// 每次访问的时候，会用（当前时间 -  最后一次访问的时间）* 速率 计算下当前应该下发的令牌数量，作为目前令牌桶中的令牌数
+// 如果当前令牌桶中的令牌数为0，表示令牌不够，需要进行限流了
+// 如果当前的令牌有剩余，下发令牌，然后更新最后一次访问的时间和当前的剩余令牌数
+func tokenBucketScript() string {
+	script := `
+		-- 令牌桶中的key
+		local key = KEYS[1]
+
+		-- 令牌的速率 个数/s
+		local rate = tonumber(ARGV[1])
+		-- 限制的最大数量
+		local maxThreads = ARGV[2]
+		-- 当前的时间
+		local timeNow = tonumber(ARGV[3])
+
+		local rateLimitInfo = redis.pcall("HMGET", key, "lastMillSecond", "currPermits")
+
+		-- 上次添加令牌的时间
+		local lastMillSecond = tonumber(rateLimitInfo[1])
+		-- 桶里当前令牌数
+		local currPermits = tonumber(rateLimitInfo[2])
+
+		local isFirst = false
+		if lastMillSecond == nil then
+			lastMillSecond = timeNow
+			currPermits = maxThreads
+			isFirst = true
+		end
+
+		-- 每次计算下当前可以下发令牌的数量
+		local addBucket = (timeNow - lastMillSecond) * rate
+		currPermits = currPermits + addBucket
+
+		if currPermits == 0 then
+			redis.pcall("HSET", key, "lastMillSecond", timeNow)
+			return 0
+		end
+
+		redis.pcall("HSET", key, "lastMillSecond", timeNow, "currPermits",currPermits-1)  
+
+		if isFirst == true then
+			-- 防止 key 之后不用，设置一个过期的时间，根据业务决定
+			redis.call('EXPIRE', key, 60*60*24)
+		end
+
+		return 1;
+    `
+	return script
+}

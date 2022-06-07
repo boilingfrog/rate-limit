@@ -34,6 +34,12 @@ func (p *LimitClient) RateLimiter(ctx context.Context, param ...Param) error {
 	// 固定窗口的实现
 	//res, err := p.rateLimit.Eval(ctx, fixedWindowScript(), []string{ps.Key}, ps.ExpireTime, ps.MaxThreads).Result()
 
+	// 令牌桶的实现
+	//res, err := p.rateLimit.Eval(ctx, tokenBucketScript(), []string{ps.Key}, 3, ps.MaxThreads, time.Now().Unix()).Result()
+	//if err != nil {
+	//	return Err
+	//}
+
 	// 滑动窗口的实现
 	res, err := p.rateLimit.Eval(ctx, slidingWindowScript(), []string{ps.Key}, ps.ExpireTime, ps.MaxThreads, time.Now().Unix(), rand.Int()).Result()
 	if err != nil {
