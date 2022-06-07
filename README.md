@@ -1,6 +1,10 @@
 # rate-limit
 
-使用 Redis 实现限流组件  
+使用 Redis 实现限流组件    
+
+这里使用 Redis 中的 Lua 脚本实现了几个常见的限流算法，固定窗口限流，滑动窗口限流，令牌桶限流   
+
+具体可参见[限流算法](https://github.com/boilingfrog/rate-limit/blob/master/lua_script.go)
 
 针对日常使用的限流大概可以分成三种     
 
